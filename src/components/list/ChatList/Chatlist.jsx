@@ -23,7 +23,7 @@ const Chatlist = () => {
         const userDocRef = doc(db, 'users', item.recieverId);
         const userDocSnap = await getDoc(userDocRef)
 
-        const user = userDocSnap.data()
+        const user = userDocSnap.data() 
 
         return {...item, user}
       })
