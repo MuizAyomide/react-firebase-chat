@@ -1,51 +1,80 @@
-import React, { useState } from 'react'
-import './Chatlist.css'
-import App from '../../../App'
-import AppUser from '../../AppUser/AppUser'
+import React, { useEffect, useState } from "react";
+import "./Chatlist.css";
+import AppUser from "../../AppUser/AppUser";
+import { useUserStore } from "../../../lib/userStore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { db } from "../../../lib/firebase";
+
+
 const Chatlist = () => {
+  const [addMode, setAddMode] = useState(false);
 
-const [addMode,setAddMode] = useState(false)
+  const [chats, setChats] = useState([]);
 
+  const { currentUser } = useUserStore();
+  const { changeChat } = useChatStore();
+
+
+  useEffect(() => {
+    const unSub = onSnapshot(doc(db, "userchats", currentUser.id), async (res) => {
+      const items = res.data().chats;
+
+      const promises = items.map( async(item) => {
+        const userDocRef = doc(db, 'users', item.recieverId);
+        const userDocSnap = await getDoc(userDocRef)
+
+        const user = userDocSnap.data()
+
+        return {...item, user}
+      })
+
+      const chatData = await Promise.all(promises)
+
+      setChats(chatData.sort((a,b)=>b.updatedAt - a.updatedAt));
+
+
+    });
+
+
+    return () => {
+      unSub();
+    };
+  }, [currentUser.id]);
+
+  const handleSelect = async (chat)=>{
+
+changeChat(chat.chatId,chat.user)
+
+  }
 
   return (
-    <div className='chatlist'>
+    <div className="chatlist">
       <div className="search">
         <div className="searchbar">
           <img src="./search.png" alt="" />
-          <input type="text" placeholder='Search' />
+          <input type="text" placeholder="Search" />
         </div>
-        <img src={addMode?"./minus.png":"./plus.png"} alt="" className='add'
-        onClick={()=>setAddMode(prev=>!prev)}/>
+        <img
+          src={addMode ? "./minus.png" : "./plus.png"}
+          alt=""
+          className="add"
+          onClick={() => setAddMode((prev) => !prev)}
+        />
       </div>
-      <div className="item">
-        <img src="./avatar.png" alt="" />
+      {chats.map((chat)=>(
+      <div className="item" key={chats.chatId} onClick={()=>handleSelect(chat)}>
+        <img src={chat.user.avatar || "./avatar.png"} alt="" />
         <div className="text">
-          <span>Jane Doe</span>
-          <p>Hello</p>
-        </div>
-      </div>
-      <div className="item">
-        <img src="./avatar.png" alt="" />
-        <div className="text">
-          <span>Jane Doe</span>
-          <p>Hello</p>
-        </div>
-      </div> <div className="item">
-        <img src="./avatar.png" alt="" />
-        <div className="text">
-          <span>Jane Doe</span>
-          <p>Hello</p>
-        </div>
-      </div> <div className="item">
-        <img src="./avatar.png" alt="" />
-        <div className="text">
-          <span>Jane Doe</span>
-          <p>Hello</p>
+          <span>{chat.user.username}</span>
+          <p>{chats.lastMessage}</p>
         </div>
       </div>
-      {addMode && <AppUser/>}
-    </div>
-  )
-}
 
-export default Chatlist
+      ))}
+      
+      {addMode && <AppUser />}
+    </div>
+  );
+};
+
+export default Chatlist;
